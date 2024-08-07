@@ -1,8 +1,7 @@
-# Modelo TransNAR Aprimorado
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
 
 class TransNAR(nn.Module):
     def __init__(self, input_dim, output_dim, embed_dim, num_heads, num_layers, ffn_dim, dropout=0.1):
@@ -64,10 +63,12 @@ class TransformerLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
+        # Atenção
         attn_output, _ = self.self_attn(x, x, x)
         x = x + self.dropout(attn_output)
         x = self.norm1(x)
         
+        # Feedforward
         ffn_output = self.ffn(x)
         x = x + self.dropout(ffn_output)
         x = self.norm2(x)
@@ -84,10 +85,12 @@ class NAR(nn.Module):
             nn.Tanh()
         )
         self.gru = nn.GRU(embed_dim, embed_dim, batch_first=True)
+        self.output_layer = nn.Linear(embed_dim, embed_dim)  # Nova camada para ajustar a saída
 
     def forward(self, x):
         reasoned = self.reasoning_layers(x)
         output, _ = self.gru(reasoned)
+        output = self.output_layer(output)  # Ajustar a dimensão
         return output
 
 class PositionalEncoding(nn.Module):
@@ -95,6 +98,7 @@ class PositionalEncoding(nn.Module):
         super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
 
+        # Inicializa o tensor de codificação posicional
         pe = torch.zeros(max_len, embed_dim)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, embed_dim, 2).float() * (-math.log(10000.0) / embed_dim))
@@ -104,7 +108,7 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('pe', pe)
 
     def forward(self, x):
-        x = x + self.pe[:x.size(0), :]
+        x = x + self.pe[:x.size(0), :].to(x.device)
         return self.dropout(x)
 
 # Exemplo de uso
@@ -116,6 +120,6 @@ num_layers = 6
 ffn_dim = 1024
 
 model = TransNAR(input_dim, output_dim, embed_dim, num_heads, num_layers, ffn_dim)
-input_data = torch.randn(32, 100)  # batch_size = 32, sequence_length = 100
+input_data = torch.randn(32, 100, input_dim)  # Corrigido para incluir a dimensão de embedding
 output = model(input_data)
-print(output.shape)  # Should print torch.Size([32, 50])
+print(output.shape)  # Deve imprimir torch.Size([32, 100, 50])
