@@ -44,6 +44,7 @@ class TransNAR(nn.Module):
                 nn.init.zeros_(m.bias)
         
         # Inicialização normal para camadas de atenção
+        # (Query/Key/Value)
         for m in self.modules():
             if isinstance(m, nn.MultiheadAttention):
                 nn.init.normal_(m.in_proj_weight, std=0.02)
